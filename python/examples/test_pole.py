@@ -4,14 +4,14 @@ sys.path.append("../balancer")
 from pole import Pole
 from balancer import Balancer
 
-balancer = Balancer()
+balancer = Balancer(
+    port='/dev/ttyACM0')
 
-pole = balancer.pole
 
 balancer.start()
 
 while True:
-    position = pole.position
     # balancer.write('test')
     # pole.reset()
-    time.sleep(2)
+    time.sleep(0.5)
+    print('pole angle', balancer.pole.angle)

@@ -17,24 +17,81 @@
 // The common contact should be attached to ground.
 
 #include <RotaryEncoder.h>
+#include <AccelStepper.h>
 
 int poleEncoderSteps = 90;
 int messageLength = 3;
 char message[3] = "";
 int bytesIndex = 0;
 
+unsigned long current_time;
+
 unsigned long old_message_time;
-unsigned long new_message_time;
 unsigned long message_period_time = 1000;
 
+unsigned long update_time = millis();
+unsigned long update_period_time = 1000;
+
+unsigned long last_step_time = millis();
+
+unsigned long last_jerk_time = millis();
+unsigned long delta_jerk_time = 10;
+
+unsigned long last_acceleration_time = millis();
+unsigned long delta_acceleration_time = 10;
+
 // Setup a RoraryEncoder for pins A2 and A3:
-RotaryEncoder encoder(A0, A2);
+RotaryEncoder poleEncoder(A0, A1);
+
+// Stepper motor
+int dir_pin = 8;
+int step_pin = 9;
+int sleep_pin = 7;
+int reset_pin = 4;
+int motorAccel = 0;
+long stepperMaxFrequency = 5000;
+
+// bounaries
+int boundary_left_pin = 10;
+int boundary_right_pin = 11;
+bool boundary_left_value = false;
+bool boundary_right_value = false;
+
+AccelStepper stepperMotor(1, step_pin, dir_pin);
+
+bool stepperGoRight = true;
+long stepperFrequency = 0;
+long stepperFrequencyGoal = 0;
+bool jerkMode = false;
+int jerk = 0;
 
 void setup()
 {
+  
+  pinMode(sleep_pin, OUTPUT); 
+  digitalWrite(sleep_pin, LOW);
+  
+  pinMode(reset_pin, OUTPUT);
+  digitalWrite(reset_pin, HIGH);
+  
   Serial.begin(9600);
-//  Serial.println("SimplePollRotator example for the RotaryEncoder library.");
+  stepperMotor.setMaxSpeed(stepperMaxFrequency);
+  stepperMotor.setSpeed(stepperFrequency);
+  stepperMotor.setAcceleration(100);
+  
+  pinMode(boundary_left_pin, INPUT); 
+  pinMode(boundary_right_pin, INPUT); 
+
+//  pinMode(dir_pin, OUTPUT);   
+//  digitalWrite(dir_pin, LOW);
+//  
+//  pinMode(step_pin, OUTPUT);   
+////  digitalWrite(step_pin, LOW);
+//  analogWrite(step_pin, 128);
+//  setPwmFrequency(step_pin, 100000);
+
 } // setup()
+
 
 
 // Read the current position of the encoder and print out when changed.
@@ -42,14 +99,14 @@ void loop()
 {
   
   static int actualPolePos = 0;
+  current_time = millis();
   
   //  Handling messages
   if (Serial.available() > 0) {
-          new_message_time = millis();
-          if (new_message_time - old_message_time > message_period_time){
+          if (current_time - old_message_time > message_period_time){
             bytesIndex = 0;
           }
-          old_message_time = new_message_time;
+          old_message_time = current_time;
           // read the incoming byte:
           char incomingByte = Serial.read();
           message[bytesIndex] = incomingByte;
@@ -64,17 +121,48 @@ void loop()
               if (message[1] == '0'){
                 actualPolePos = 0;
               }
-//              Serial.println("pee");
             }
+            // Motor
             if (message[0] == 'm'){
-              Serial.println("emm");
+              // Change direction              
+              if (message[1] == 'd'){
+                stepperGoRight = !stepperGoRight;
+              }
+              // Break              
+              if (message[1] == 'b'){
+                stepperFrequency = 0;
+                stepperFrequencyGoal = 0;
+                motorAccel = 0;
+                jerk = 0;
+              }
+              // Set frequency
+              if (message[1] == 'f'){
+                jerkMode = false;
+                // convert the value (char value 0 to 127) to an interger
+                stepperFrequency = String(int(message[2])).toInt() * stepperMaxFrequency /127;
+              }
+              // Set speed
+              if (message[1] == 's'){
+                jerkMode = false;
+                // convert the value (char value 0 to 127) to an interger
+                stepperFrequency = ((String(int(message[2])).toInt()) -63) * stepperMaxFrequency /126 * 2;
+              }
+              // Set jerk      
+              if (message[1] == 'j'){
+                // convert the value (char value 0 to 127) to an interger
+                jerkMode = true;
+                jerk = ((String(int(message[2])).toInt()) -63);
+                motorAccel += jerk;
+              }
+              // Update motor
             }
           }
   }
+  
   // Pole
-  encoder.tick();
+  poleEncoder.tick();
   static int polePos = 0;
-  int deltaPolePos = encoder.getPosition() - polePos;
+  int deltaPolePos = poleEncoder.getPosition() - polePos;
   if (deltaPolePos != 0) {
     actualPolePos = actualPolePos + deltaPolePos;
     if (actualPolePos > poleEncoderSteps - 1)
@@ -84,10 +172,84 @@ void loop()
     if ( actualPolePos < 0){
       actualPolePos = poleEncoderSteps - 1;
     }
-    Serial.println("[" + String(actualPolePos * (360 / poleEncoderSteps)) + "]" );
-//    Serial.println();
     polePos = polePos + deltaPolePos;
-  } // if
+  } 
+
+  //  Boundaries
+  boundary_left_value = digitalRead(boundary_left_pin);
+  boundary_right_value = digitalRead(boundary_right_pin);
+
+  // Stepper motor
+//  int max_acc = 100;
+//  int deltaFrequency = stepperFrequencyGoal - stepperFrequency;
+//  if (deltaFrequency>0){
+//    deltaFrequency = max_acc;
+//    stepperFrequency += 1;
+//  }
+//  if (deltaFrequency < 0){
+//    deltaFrequency = max_acc;
+//    stepperFrequency -= 1;
+//  }
+//  stepperFrequency += deltaFrequency;
+//  stepperFrequency = stepperFrequencyGoal;
+  if (jerkMode == true){
+    if (current_time - last_jerk_time > delta_jerk_time){
+//      motorAccel += jerk;
+      last_jerk_time = current_time;
+    }
+    if (current_time - last_acceleration_time > delta_acceleration_time){
+      stepperFrequency += motorAccel;
+      stepperFrequencyGoal = stepperFrequency;
+      last_acceleration_time = current_time;
+    }
+  }
+  bool resetting = false;
+  if (boundary_right_value and boundary_left_value){
+//    stepperFrequency/
+    resetting = false;
+  }
+  else if(boundary_right_value){
+    stepperFrequency = -100;
+    resetting = true;
+  }
+  else if(boundary_left_value){
+    stepperFrequency = 100;
+    resetting = true;
+    
+  } else {
+    stepperFrequency = 0;
+    resetting = true;
+  }
+  
+  if (stepperFrequency != 0){
+    digitalWrite(sleep_pin, HIGH);
+  }
+  stepperMotor.setSpeed(stepperFrequency);
+  stepperMotor.runSpeed();
+
+  if (stepperFrequency == 0){
+//    digitalWrite(sleep_pin, LOW);
+  } 
+  
+  if (resetting){
+    stepperFrequency = 0;
+    stepperFrequencyGoal = 0;
+    motorAccel = 0;
+    jerk = 0;
+    bool resetting = false;
+  }
+//  if (current_time - last_step_time > 0.01){
+//    digitalWrite(step_pin, !digitalRead(step_pin));
+//    last_step_time = current_time;
+//  }   
+
+  // Send status
+  if(current_time - update_time > update_period_time){
+    update_time = current_time;
+    Serial.println("[" + String(actualPolePos * (360 / poleEncoderSteps)) + "," + String(stepperFrequency) + "," + String(motorAccel) + "," + String(jerk) + "," + String(boundary_left_value) + "," + String(boundary_right_value) + "]" );
+  }
+  
+  
+  // if
 } // loop ()
 
-// The End
