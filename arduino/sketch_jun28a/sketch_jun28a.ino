@@ -64,6 +64,9 @@ long stepperFrequency = 0;
 long stepperFrequencyGoal = 0;
 bool jerkMode = false;
 int jerk = 0;
+bool calibrating = true;
+int calibration_stage = 'right';
+int max_steps = 0;
 
 void setup()
 {
@@ -92,11 +95,65 @@ void setup()
 
 } // setup()
 
+void calibration()
+{
 
+  //  Boundaries
+  boundary_left_value = digitalRead(boundary_left_pin);
+  boundary_right_value = digitalRead(boundary_right_pin);
+
+  // Calibration 
+  if (calibrating == true){
+    digitalWrite(sleep_pin, HIGH);
+    if (calibration_stage == 'right'){
+      if (boundary_right_value){
+        stepperMotor.setSpeed(-600);
+        stepperMotor.runSpeed();
+        return;
+      } else {
+        calibration_stage = 'left';
+        stepperMotor.setCurrentPosition(0);
+      }
+    }
+    
+    if (calibration_stage == 'left'){
+        if (boundary_left_value){
+          stepperMotor.setSpeed(600);
+          stepperMotor.runSpeed();
+          return;
+        } else {
+        calibration_stage = 'reset';
+          max_steps = stepperMotor.currentPosition();
+        }
+    }
+    
+    if (calibration_stage == 'reset'){
+        if (stepperMotor.currentPosition() > max_steps/2){
+          stepperMotor.setSpeed(-600);
+          stepperMotor.runSpeed();
+          return;
+        } else {
+          calibrating = false;
+        }
+    }
+    return;
+  }
+}
 
 // Read the current position of the encoder and print out when changed.
 void loop()
 {
+
+
+  // Calibration 
+  if (calibrating == true){
+    calibration();
+    return;
+  }
+
+  //  Boundaries
+  boundary_left_value = digitalRead(boundary_left_pin);
+  boundary_right_value = digitalRead(boundary_right_pin);
   
   static int actualPolePos = 0;
   current_time = millis();
@@ -175,9 +232,6 @@ void loop()
     polePos = polePos + deltaPolePos;
   } 
 
-  //  Boundaries
-  boundary_left_value = digitalRead(boundary_left_pin);
-  boundary_right_value = digitalRead(boundary_right_pin);
 
   // Stepper motor
 //  int max_acc = 100;
@@ -209,12 +263,16 @@ void loop()
     resetting = false;
   }
   else if(boundary_right_value){
-    stepperFrequency = -100;
-    resetting = true;
+    if (stepperFrequency > 0){
+      stepperFrequency = 0;
+      resetting = true;
+    }
   }
   else if(boundary_left_value){
-    stepperFrequency = 100;
-    resetting = true;
+    if (stepperFrequency < 0){
+      stepperFrequency = 0;
+      resetting = true;
+    }
     
   } else {
     stepperFrequency = 0;
@@ -246,7 +304,15 @@ void loop()
   // Send status
   if(current_time - update_time > update_period_time){
     update_time = current_time;
-    Serial.println("[" + String(actualPolePos * (360 / poleEncoderSteps)) + "," + String(stepperFrequency) + "," + String(motorAccel) + "," + String(jerk) + "," + String(boundary_left_value) + "," + String(boundary_right_value) + "]" );
+    Serial.println("[" + 
+      String(actualPolePos * (360 / poleEncoderSteps)) + "," + 
+      String(stepperMotor.currentPosition ()) + "," +
+      String(stepperFrequency) + "," + 
+      String(motorAccel) + "," + 
+      String(jerk) + "," + 
+      String(boundary_left_value) + "," + 
+      String(boundary_right_value)  + "," + 
+      String(max_steps) + "]" );
   }
   
   

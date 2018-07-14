@@ -9,7 +9,7 @@ from pole import Pole
 from balancer import Balancer
 
 balancer = Balancer(
-    port='/dev/ttyACM1')
+    port='/dev/ttyACM0')
 
 stepper_motor = balancer.stepper_motor
 
