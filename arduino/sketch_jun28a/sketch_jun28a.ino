@@ -8,6 +8,8 @@
 // -----
 // 18.01.2014 created by Matthias Hertel
 // -----
+// library for rotary encoder https://github.com/mathertel/RotaryEncoder
+// library for accelstepper http://arduino.cc/en/Reference/Stepper
 
 // This example checks the state of the rotary encoder in the loop() function.
 // The current position is printed on output when changed.
