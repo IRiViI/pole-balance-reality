@@ -51,7 +51,7 @@ int step_pin = 9;
 int sleep_pin = 7;
 int reset_pin = 4;
 int motorAccel = 0;
-long stepperMaxFrequency = 5000;
+long stepperMaxFrequency = 3000;
 
 // bounaries
 int boundary_left_pin = 10;
@@ -188,6 +188,7 @@ void loop()
                   String(actualPolePos * (360 / poleEncoderSteps)) + "," + 
                   String(stepperMotor.currentPosition ()) + "," +
                   String(stepperFrequency) + "," + 
+                  String(motorAccel) + "," + 
                   String(boundary_left_value) + "," + 
                   String(boundary_right_value) + "]" );
               }
