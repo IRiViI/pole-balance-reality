@@ -102,6 +102,12 @@ class Balancer():
         # Send message to the Arduino
         self.ard.write(text.encode('utf-8'))
 
+    def onstate(self, state):
+        print(state)
+
+    def get_state(self):
+        self.write("sa")
+
     def _read_all(self):
         """ Wait for incomming message and handle them propperly"""
 
@@ -116,7 +122,9 @@ class Balancer():
             msg = json.loads(raw.decode().replace('\r\n', ''))
             # Handle the message
             pole_agle = msg[0]
-            print(msg)
+            # print(msg)
+            self.onstate(msg)
+            # print(msg)
         except:
             print('not done', raw)
             return

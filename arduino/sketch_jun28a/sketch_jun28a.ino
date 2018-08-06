@@ -32,7 +32,7 @@ unsigned long old_message_time;
 unsigned long message_period_time = 1000;
 
 unsigned long update_time = millis();
-unsigned long update_period_time = 1000;
+unsigned long update_period_time = 100;
 
 unsigned long last_step_time = millis();
 
@@ -181,6 +181,17 @@ void loop()
                 actualPolePos = 0;
               }
             }
+            if (message[0] == 's'){
+                        
+              if (message[1] == 'a'){
+                Serial.println("[" + 
+                  String(actualPolePos * (360 / poleEncoderSteps)) + "," + 
+                  String(stepperMotor.currentPosition ()) + "," +
+                  String(stepperFrequency) + "," + 
+                  String(boundary_left_value) + "," + 
+                  String(boundary_right_value) + "]" );
+              }
+            }
             // Motor
             if (message[0] == 'm'){
               // Change direction              
@@ -304,18 +315,18 @@ void loop()
 //  }   
 
   // Send status
-  if(current_time - update_time > update_period_time){
-    update_time = current_time;
-    Serial.println("[" + 
-      String(actualPolePos * (360 / poleEncoderSteps)) + "," + 
-      String(stepperMotor.currentPosition ()) + "," +
-      String(stepperFrequency) + "," + 
-      String(motorAccel) + "," + 
-      String(jerk) + "," + 
-      String(boundary_left_value) + "," + 
-      String(boundary_right_value)  + "," + 
-      String(max_steps) + "]" );
-  }
+//  if(current_time - update_time > update_period_time){
+//    update_time = current_time;
+//    Serial.println("[" + 
+//      String(actualPolePos * (360 / poleEncoderSteps)) + "," + 
+//      String(stepperMotor.currentPosition ()) + "," +
+//      String(stepperFrequency) + "," + 
+//      String(motorAccel) + "," + 
+//      String(jerk) + "," + 
+//      String(boundary_left_value) + "," + 
+//      String(boundary_right_value)  + "," + 
+//      String(max_steps) + "]" );
+//  }
   
   
   // if
