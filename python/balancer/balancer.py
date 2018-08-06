@@ -3,6 +3,7 @@ import threading
 import json
 from pole import Pole
 from stepperMotor import StepperMotor
+import time
 
 
 class Balancer():
@@ -37,6 +38,8 @@ class Balancer():
         self.pole = Pole(self)
         # Pole object
         self.stepper_motor = StepperMotor(self)
+
+        self._obtained_state = None
 
         # Private variables
         self._running = False
@@ -107,6 +110,11 @@ class Balancer():
 
     def get_state(self):
         self.write("sa")
+        while self._obtained_state is None:
+            time.sleep(0.001)
+        state = self._obtained_state
+        self.state = None
+        return state
 
     def _read_all(self):
         """ Wait for incomming message and handle them propperly"""
@@ -123,7 +131,8 @@ class Balancer():
             # Handle the message
             pole_agle = msg[0]
             # print(msg)
-            self.onstate(msg)
+            # self.onstate(msg)
+            self._obtained_state = msg
             # print(msg)
         except:
             print('not done', raw)

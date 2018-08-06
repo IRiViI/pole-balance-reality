@@ -48,4 +48,5 @@ while True:
     #     stepper_motor.set_jerk(-jerk)
     # else: 
     #     stepper_motor.set_jerk(jerk)
-    balancer.get_state()
+    state = balancer.get_state()
+    print('wazzaa', state)
